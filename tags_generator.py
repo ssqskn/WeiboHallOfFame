@@ -33,16 +33,10 @@ def get_weibo_content_from_disk(path):
     return pd.read_csv(path)
 
 def weibo_text_cleansing(text):
-    try:
-        if isinstance(text, list):   #针对用[]引用的微博
-            text = ""
-        elif isinstance(text, int) or isinstance(text, float):
-            text = str(text)
-    except Exception,e:
-        print text
-        print type(text)
-        raise Exception,e
-    
+    if isinstance(text, list):   #针对用[]引用的微博
+        text = ""
+    elif isinstance(text, int) or isinstance(text, float):
+        text = str(text)    
     text = text.strip().replace(',','')
     for rp in regex_pattern:
         text = rp.sub('',text)
@@ -122,7 +116,7 @@ class TagsGenerator():
         tags = []
         for idx in self.tfidf[row].nonzero()[1]:
             tfidf_val = self.tfidf[row].getcol(idx).toarray()[0][0]
-            if tfidf_val > tfidf_threshold_for_tags:  ## tfidf大于阈值纳入tags中
+            if tfidf_val > tfidf_threshold_low and tfidf_val < tfidf_threshold_high:  ## tfidf在阈值范围内纳入tags中
                 tags.append({idx: {self.tfidf_words[idx]: round(tfidf_val,3)}})
         self.tags.append((row, tags))
         
@@ -167,7 +161,8 @@ class TagsGenerator():
         
 
 if __name__ == '__main__':
-    tfidf_threshold_for_tags = 0.2
+    tfidf_threshold_low = 0.3
+    tfidf_threshold_high = 0.99
     stop_words = load_stopwords(path="stopwords/stopwords.txt")
     regex_pattern = [
                      re.compile("http\:\/\/[\S]+"), #清除网址 
