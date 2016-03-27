@@ -161,6 +161,7 @@ class TagsGenerator():
         
 
 if __name__ == '__main__':
+    n_users = 1000
     tfidf_threshold_low = 0.3
     tfidf_threshold_high = 0.99
     stop_words = load_stopwords(path="stopwords/stopwords.txt")
@@ -168,15 +169,15 @@ if __name__ == '__main__':
                      re.compile("http\:\/\/[\S]+"), #清除网址 
                      re.compile("\/\/.+"),          #清除引用
                      re.compile(u"（分享自.+?）"),    #清除分享来源信息
-                     re.compile(u"（来自.+?）"),    #清除分享来源信息
+                     re.compile(u"（来自.+?）"),     #清除分享来源信息
                      re.compile("@[\S]+?[\s]"),     #清除@
                      re.compile("@[\S]+?"),         #清除结尾处的@
                      re.compile("\[.+?\]"),         #清除表情
-                     re.compile(u"回复@.+?\:"),    #清除回复标头
-                     re.compile("\d"),             #清除数字
+                     re.compile(u"回复@.+?\:"),     #清除回复标头
+                     re.compile("\d"),              #清除数字
                     ]
    
-    weibo_df = get_weibo_content(30, "tmp/weibo_content.csv")
+    weibo_df = get_weibo_content(n_users, "tmp/weibo_content.csv")
     #weibo_df = get_weibo_content_from_disk("tmp/weibo_content.csv")
     tags_generator = TagsGenerator(weibo_df)
     tags_generator.generate_tags(n_proc=1)
