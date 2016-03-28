@@ -42,6 +42,23 @@ def weibo_text_cleansing(text):
         text = rp.sub('',text)
     return text
 
+def combine_tags(tags_list):
+    """tags_list:
+       {4244: {u'aaa': 0.631}}
+    """
+    tag_dict = {}
+    for tags in tags_list[1]:
+        for tag in tags:
+            if tag_dict.has_key(tag.values()[0].keys()[0]):
+                tag_dict[tag.values()[0].keys()[0]] += 1
+            else:
+                tag_dict[tag.values()[0].keys()[0]] = 1
+    tag_user = tag_dict.items()
+    tag_user.sort(key=lambda x: x[1], reverse=True)
+    tag_user = [i for i in tag_user if i[1] >= user_tags_count_threshold]
+    return (tags_list[0], tag_user)
+    
+
 def remove_stopwords(word_sequence):
     if len(word_sequence) == 0:
         return ""
@@ -120,7 +137,7 @@ class TagsGenerator():
                 tags.append({idx: {self.tfidf_words[idx]: round(tfidf_val,3)}})
         self.tags.append((row, tags))
         
-    def generate_tags(self, n_proc=1):
+    def generate_weibo_tags(self, n_proc=1):
         if len(self.tfidf_words) == 0:
             self.calculateTFIDF()
         t0 = time.time()
@@ -159,11 +176,32 @@ class TagsGenerator():
         self.weibo_df.to_csv(self.text_tags_save_path, index=False, encoding='utf8')
         print "Generate tags and add to dataframe. %s secs" % round((time.time()-t0),1)
         
+    def generate_user_tags(self, n_proc=1):
+        """ 采用所有用户发出微博的tags频率进行汇总统计 """
+        try:
+            if len(self.weibo_df['text_tags']) == 0:
+                raise Exception, "Data frame is empty."
+        except KeyError, e:
+            print "Text tags have not been generated yet."
+            raise KeyError, e
+        
+        weibo_df_grouped = self.weibo_df.groupby(by='uid')['text_tags']
+        
+        t0 = time.time()
+        pool = multiprocessing.Pool(processes=30)
+        results = pool.map(combine_tags, list(weibo_df_grouped))
+        pool.close()
+        pool.join()
+        pd.DataFrame(results, columns=['uid','tags']).to_csv("tmp/user_tags.csv", index=False, encoding='utf8')
+        print "Generate user tags. %s secs" % round((time.time()-t0),1)
+        
+
 
 if __name__ == '__main__':
-    n_users = 1000
+    n_users = 100
     tfidf_threshold_low = 0.3
     tfidf_threshold_high = 0.99
+    user_tags_count_threshold = 8
     stop_words = load_stopwords(path="stopwords/stopwords.txt")
     regex_pattern = [
                      re.compile("http\:\/\/[\S]+"), #清除网址 
@@ -180,6 +218,6 @@ if __name__ == '__main__':
     weibo_df = get_weibo_content(n_users, "tmp/weibo_content.csv")
     #weibo_df = get_weibo_content_from_disk("tmp/weibo_content.csv")
     tags_generator = TagsGenerator(weibo_df)
-    tags_generator.generate_tags(n_proc=1)
-
+    tags_generator.generate_weibo_tags(n_proc=1)
+    tags_generator.generate_user_tags(n_proc=1)
     
